@@ -20,7 +20,7 @@ describe('getWeekNumber()', () => {
 
     d = new Date(2020, 0, 8); // January 8, 2020 local time
     result = getWeekNumber(d, 6);
-    expect(result).toBe(1);
+    expect(result).toBe(2); // Jan 8 is in week 2 for both Monday and Saturday first
   });
 
   it('should return a valid value for last of the year', () => {

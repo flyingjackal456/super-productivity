@@ -275,7 +275,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      flex: 1; // Share space equally with calendar rows
+      height: 54.8px; // Match calendar row height
 
       &.blank-week {
         visibility: hidden; // Hide blank rows but preserve spacing
