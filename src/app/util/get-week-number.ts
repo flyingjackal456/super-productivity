@@ -7,7 +7,7 @@ export const getWeekNumber = (
   const date = new Date(d);
 
   if (weekNumberSystem === 'us') {
-    // US Week Number: Week 1 is the week containing January 1
+    // US Week Number: Week 1 is the week containing January 1 with the most days in the year
     // Use LOCAL time to match the aria-label date (which is in local time)
 
     // Get the year, month, day from the local date (not UTC)
@@ -17,12 +17,42 @@ export const getWeekNumber = (
     // Get the day of week for Jan 1 (0=Sunday, 1=Monday, ..., 6=Saturday)
     const jan1DayOfWeek = jan1.getDay();
 
-    // Calculate days from the start of the week containing Jan 1 to Jan 1
-    // The week starts on: Jan 1 - (days from start of week to Jan 1)
-    // days from start of week to Jan 1 = (jan1DayOfWeek - firstDayOfWeek + 7) % 7
+    // Calculate the two candidate weeks containing Jan 1:
+    // 1. Week starting on the Sunday BEFORE Jan 1
+    // 2. Week starting on the Sunday BEFORE that (previous week)
+    // Week 1 is the one with more days in the current year
+
     const daysFromWeekStartToJan1 = (jan1DayOfWeek - firstDayOfWeek + 7) % 7;
-    const week1Start = new Date(jan1);
-    week1Start.setDate(jan1.getDate() - daysFromWeekStartToJan1);
+    const weekStartThisYear = new Date(jan1);
+    weekStartThisYear.setDate(jan1.getDate() - daysFromWeekStartToJan1);
+
+    // The week containing Jan 1 that starts BEFORE this one
+    const weekStartPrevYear = new Date(weekStartThisYear);
+    weekStartPrevYear.setDate(weekStartThisYear.getDate() - 7);
+
+    // Calculate days in current year for each candidate week
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year + 1, 0, 1);
+
+    // Helper to count days in [yearStart, yearEnd) for a week
+    const countDaysInYear = (weekStart: Date, weekEnd: Date): number => {
+      const overlapStart = Math.max(weekStart.getTime(), yearStart.getTime());
+      // +1 day to include weekEnd (which is the last day of the week)
+      const overlapEnd = Math.min(weekEnd.getTime() + 86400000, yearEnd.getTime());
+      return Math.max(0, (overlapEnd - overlapStart) / 86400000);
+    };
+
+    const weekEndThisYear = new Date(weekStartThisYear);
+    weekEndThisYear.setDate(weekStartThisYear.getDate() + 6);
+    const daysInYearThisWeek = countDaysInYear(weekStartThisYear, weekEndThisYear);
+
+    const weekEndPrevYear = new Date(weekStartPrevYear);
+    weekEndPrevYear.setDate(weekStartPrevYear.getDate() + 6);
+    const daysInYearPrevWeek = countDaysInYear(weekStartPrevYear, weekEndPrevYear);
+
+    // Choose the week with more days in the current year as week 1
+    const week1Start =
+      daysInYearThisWeek >= daysInYearPrevWeek ? weekStartThisYear : weekStartPrevYear;
 
     // Calculate days from week 1 start to the target date
     const daysDiff = (date.getTime() - week1Start.getTime()) / 86400000;
@@ -47,7 +77,6 @@ export const getWeekNumber = (
 
     // Handle edge case: if week number is too large, it belongs to next year's week 1
     // Check if the week containing the date includes Jan 1 of the next year
-    // The week contains Jan 1 if: weekStart <= Jan1 < weekStart + 7 days
     const dateDayOfWeek = date.getDay();
     const daysFromWeekStartToDate = (dateDayOfWeek - firstDayOfWeek + 7) % 7;
     const weekStart = new Date(date);
@@ -57,18 +86,8 @@ export const getWeekNumber = (
 
     const nextYearJan1 = new Date(year + 1, 0, 1);
     if (weekStart <= nextYearJan1 && weekEnd >= nextYearJan1) {
-      // This week contains Jan 1 of the next year, so use next year's week 1
-      const nextYearJan1DayOfWeek = nextYearJan1.getDay();
-      const nextYearDaysFromWeekStartToJan1 =
-        (nextYearJan1DayOfWeek - firstDayOfWeek + 7) % 7;
-      const nextYearWeek1Start = new Date(nextYearJan1);
-      nextYearWeek1Start.setDate(
-        nextYearJan1.getDate() - nextYearDaysFromWeekStartToJan1,
-      );
-      // Calculate days from next year's week 1 start to this week's start
-      const nextYearDaysDiff =
-        (weekStart.getTime() - nextYearWeek1Start.getTime()) / 86400000;
-      return Math.floor(nextYearDaysDiff / 7) + 1;
+      // This week contains Jan 1 of the next year, so it is week 1 of the next year
+      return 1;
     }
 
     return weekNumber;
